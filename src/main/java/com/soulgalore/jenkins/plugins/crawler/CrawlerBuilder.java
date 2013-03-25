@@ -47,6 +47,7 @@ import com.soulgalore.crawler.core.CrawlerConfiguration;
 import com.soulgalore.crawler.core.CrawlerResult;
 import com.soulgalore.crawler.core.HTMLPageResponse;
 import com.soulgalore.crawler.guice.CrawlModule;
+import com.soulgalore.crawler.util.StatusCode;
 import com.soulgalore.jenkins.plugins.crawler.blocks.EnableAuthBlock;
 import com.soulgalore.jenkins.plugins.crawler.blocks.EnableCrawlerInternalsBlock;
 import com.soulgalore.jenkins.plugins.crawler.blocks.EnableCrawlerPathBlock;
@@ -113,7 +114,6 @@ public class CrawlerBuilder extends Builder {
 		return followPath;
 	}
 
-
 	public String getHttpThreads() {
 		return httpThreads;
 	}
@@ -158,7 +158,6 @@ public class CrawlerBuilder extends Builder {
 		return checkCrawlerPath;
 	}
 
-
 	@Override
 	public boolean perform(AbstractBuild build, Launcher launcher,
 			BuildListener listener) {
@@ -174,13 +173,13 @@ public class CrawlerBuilder extends Builder {
 		final CrawlerResult result = crawl();
 
 		return verifyResult(result, logger);
-		
+
 	}
 
 	private boolean verifyResult(CrawlerResult result, PrintStream logger) {
-		
+
 		boolean isBreakingTheLaw = false;
-		
+
 		logger.println("Tested "
 				+ (result.getNonWorkingUrls().size() + result
 						.getVerifiedURLResponses().size()) + " with "
@@ -188,39 +187,36 @@ public class CrawlerBuilder extends Builder {
 				+ " working urls and " + result.getNonWorkingUrls().size()
 				+ " not working.");
 
-		// start with non working urls 
+		// start with non working urls
 		Set<HTMLPageResponse> responses = result.getNonWorkingUrls();
-		if (responses.size()>0) {
+		if (responses.size() > 0) {
 			logger.println("Non working urls ...");
 			isBreakingTheLaw = true;
 		}
-		
+
 		for (HTMLPageResponse response : responses) {
-			logger.println(
-					response.getPageUrl().getUrl() + " " + response.getResponseCode() +  " linked from:" + response.getPageUrl().getReferer());
+			logger.println(response.getPageUrl().getUrl() + " "
+					+ StatusCode.toFriendlyName(response.getResponseCode())
+					+ " linked from:" + response.getPageUrl().getReferer());
 		}
-			
+
 		logger.println("Working urls ...");
 		for (HTMLPageResponse response : result.getVerifiedURLResponses()) {
-			logger.println(
-					response.getPageUrl().getUrl());
+			logger.println(response.getPageUrl().getUrl());
 		}
-		
-		
+
 		if (isBreakingTheLaw)
 			return false;
 		else
 			return true;
 	}
 
-
 	private CrawlerResult crawl() {
 
 		CrawlerConfiguration configuration = CrawlerConfiguration.builder()
 				.setMaxLevels(level).setVerifyUrls(true)
 				.setOnlyOnPath(followPath).setNotOnPath(notFollowPath)
-				.setStartUrl(url)
-				.build();
+				.setStartUrl(url).build();
 
 		final Injector injector = Guice.createInjector(new CrawlModule());
 		final Crawler crawler = injector.getInstance(Crawler.class);
