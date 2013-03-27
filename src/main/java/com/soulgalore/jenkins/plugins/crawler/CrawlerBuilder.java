@@ -221,7 +221,12 @@ public class CrawlerBuilder extends Builder {
 		final Injector injector = Guice.createInjector(new CrawlModule());
 		final Crawler crawler = injector.getInstance(Crawler.class);
 
+		try {
 		return crawler.getUrls(configuration);
+		}
+		finally {
+			crawler.shutdown();
+		}
 	}
 
 	private void setupCrawlerInternals() {
