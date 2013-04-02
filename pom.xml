@@ -3,7 +3,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>1.507</version><!-- which version of Jenkins is this plugin built against? -->
+    <version>1.490</version><!-- which version of Jenkins is this plugin built against? -->
   </parent>
 
 
@@ -39,7 +39,7 @@
 		<dependency>
 			<groupId>com.soulgalore</groupId>
 			<artifactId>crawler</artifactId>
-			<version>1.4.1</version>
+			<version>1.5-SNAPSHOT</version>
 		</dependency>
 	</dependencies>
 
