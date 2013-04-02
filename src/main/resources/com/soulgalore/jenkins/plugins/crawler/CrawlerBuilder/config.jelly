@@ -4,16 +4,14 @@
     <f:textbox clazz="required"/>
   </f:entry>
   
-    <f:entry name="level" title="The level of the crawl" field="level">
-    <select name="level" clazz="required">
-    	<option value="0">0</option>
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-    </select>
+    <f:entry title="The level of the crawl" field="level">
+    <f:textbox default="1" clazz="required positive-number"/>
 </f:entry>
+
+<f:entry  title="Verify assets">
+   <f:checkbox name="verifyAssets" checked="${instance.verifyAssets}"/>
+</f:entry>
+
 
  <f:block>
     <f:optionalBlock name="checkAuth" checked="${instance.checkAuth}" title="Use Basic Auth">
@@ -43,7 +41,7 @@
 <f:block>
     <f:optionalBlock name="checkCrawler" checked="${instance.checkCrawler}" title="Crawler internals">
 	<f:entry title="Number of HTTP threads" field="httpThreads" >
-      <f:textbox default="5" clazz="positive-number"/>
+      <f:textbox default="5"  clazz="positive-number"/>
   	</f:entry>
   	<f:entry title="Number of threads in pool" field="threadsPool">
       <f:textbox default="5" clazz="positive-number"/>
