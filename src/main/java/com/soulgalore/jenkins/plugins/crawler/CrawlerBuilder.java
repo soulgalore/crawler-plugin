@@ -28,6 +28,7 @@ import hudson.model.AbstractProject;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -42,10 +43,13 @@ import org.kohsuke.stapler.QueryParameter;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.soulgalore.crawler.core.Crawler;
 import com.soulgalore.crawler.core.CrawlerConfiguration;
 import com.soulgalore.crawler.core.CrawlerResult;
+import com.soulgalore.crawler.core.Crawler;
 import com.soulgalore.crawler.core.HTMLPageResponse;
+import com.soulgalore.crawler.core.assets.AssetResponse;
+import com.soulgalore.crawler.core.assets.AssetsVerificationResult;
+import com.soulgalore.crawler.core.assets.AssetsVerifier;
 import com.soulgalore.crawler.guice.CrawlModule;
 import com.soulgalore.crawler.util.StatusCode;
 import com.soulgalore.jenkins.plugins.crawler.blocks.EnableAuthBlock;
@@ -70,14 +74,19 @@ public class CrawlerBuilder extends Builder {
 	private final String connectionTimeout;
 	private final String followPath;
 	private final String notFollowPath;
+	private final boolean verifyAssets;
+
+	
 
 	@DataBoundConstructor
-	public CrawlerBuilder(String url, int level, EnableAuthBlock checkAuth,
+	public CrawlerBuilder(String url, int level, boolean verifyAssets,
+			EnableAuthBlock checkAuth,
 			EnableCrawlerInternalsBlock checkCrawler,
 			EnableCrawlerPathBlock checkCrawlerPath) {
 
 		this.url = url;
 		this.level = level;
+		this.verifyAssets = verifyAssets;
 
 		this.login = checkAuth == null ? "" : checkAuth.getLogin();
 		this.password = checkAuth == null ? "" : checkAuth.getPassword();
@@ -99,6 +108,10 @@ public class CrawlerBuilder extends Builder {
 				.getNotFollowPath();
 		this.checkCrawlerPath = checkCrawlerPath == null ? false : true;
 
+	}
+
+	public boolean isVerifyAssets() {
+		return verifyAssets;
 	}
 
 	public String getConnectionTimeout() {
@@ -164,19 +177,44 @@ public class CrawlerBuilder extends Builder {
 
 		PrintStream logger = listener.getLogger();
 
-		if (!setupAuth(logger))
-			return false;
-
+		logger.println("Start crawling:" + url +  " for " + level + " level(s)");
+		
+		CrawlerConfiguration configuration = CrawlerConfiguration.builder()
+				.setMaxLevels(level).setVerifyUrls(true)
+				.setOnlyOnPath(followPath).setNotOnPath(notFollowPath)
+				.setStartUrl(url).build();
+		
 		setupCrawlerInternals();
 
-		logger.println("Start crawling the URL:s ...");
-		final CrawlerResult result = crawl();
+		setupAuth();
+	
+		Injector injector = Guice.createInjector(new CrawlModule());
+		Crawler crawler = injector.getInstance(Crawler.class);
+		AssetsVerifier verifier = injector.getInstance(AssetsVerifier.class);
+		
 
-		return verifyResult(result, logger);
+		
+		try {
+
+			final CrawlerResult result = crawl(configuration, crawler, logger);
+
+			boolean isPagesOk = verifyPages(result, logger);
+			boolean isAssetsOk = true;
+
+			if (verifyAssets) {
+				isAssetsOk = verifyAssets(verifier, result, configuration, logger);
+			}
+
+			return (isPagesOk && isAssetsOk);
+
+		} finally {
+			crawler.shutdown();
+			verifier.shutdown();
+		}
 
 	}
 
-	private boolean verifyResult(CrawlerResult result, PrintStream logger) {
+	private boolean verifyPages(CrawlerResult result, PrintStream logger) {
 
 		boolean isBreakingTheLaw = false;
 
@@ -211,25 +249,40 @@ public class CrawlerBuilder extends Builder {
 			return true;
 	}
 
-	private CrawlerResult crawl() {
+	private CrawlerResult crawl(CrawlerConfiguration configuration,Crawler crawler,
+			PrintStream logger) {
+			CrawlerResult result = crawler.getUrls(configuration);
+			return result;
 
-		CrawlerConfiguration configuration = CrawlerConfiguration.builder()
-				.setMaxLevels(level).setVerifyUrls(true)
-				.setOnlyOnPath(followPath).setNotOnPath(notFollowPath)
-				.setStartUrl(url).build();
 
-		final Injector injector = Guice.createInjector(new CrawlModule());
-		final Crawler crawler = injector.getInstance(Crawler.class);
+	}
 
-		try {
-		return crawler.getUrls(configuration);
+	private boolean verifyAssets(AssetsVerifier verifier, CrawlerResult result,
+			CrawlerConfiguration configuration, PrintStream logger) {
+
+		logger.println("Start verifying assets");
+		AssetsVerificationResult assetsResult = verifier.verify(
+				result.getVerifiedURLResponses(), configuration);
+		logger.println("Verified " + assetsResult.getWorkingAssets().size()
+				+ " assets that works and "
+				+ assetsResult.getNonWorkingAssets().size()
+				+ " that don't work");
+
+		if (assetsResult.getNonWorkingAssets().size() > 0) {
+
+			for (AssetResponse resp : assetsResult.getNonWorkingAssets()) {
+				logger.println(resp.getUrl() + " "
+						+ StatusCode.toFriendlyName(resp.getResponseCode()));
+			}
+			return false;
 		}
-		finally {
-			crawler.shutdown();
-		}
+
+		else
+			return true;
 	}
 
 	private void setupCrawlerInternals() {
+
 		if (!"".equals(httpThreads))
 			System.setProperty(CrawlerConfiguration.MAX_THREADS_PROPERTY_NAME,
 					httpThreads);
@@ -244,28 +297,23 @@ public class CrawlerBuilder extends Builder {
 			System.setProperty(
 					CrawlerConfiguration.CONNECTION_TIMEOUT_PROPERTY_NAME,
 					connectionTimeout);
+
 	}
 
-	private boolean setupAuth(PrintStream logger) {
+	private void setupAuth() {
 
 		if (!"".equals(login) && !"".equals(password)) {
-			logger.println("Will use Basic auth: " + login + " " + password);
 			try {
 				URL u = new URL(url);
 				String host = u.getHost()
 						+ (u.getPort() != -1 ? ":" + u.getPort() : ":80");
 				System.setProperty("com.soulgalore.crawler.auth", host + ":"
-						+ login + ": ***SECRET***");
-
-				logger.println("Will use:"
-						+ System.getProperty("com.soulgalore.crawler.auth"));
+						+ login + ": " + password);
 			} catch (MalformedURLException e) {
-				logger.println(e.toString());
-				return false;
+				System.err.println(e);
 			}
 
 		}
-		return true;
 
 	}
 
@@ -287,7 +335,7 @@ public class CrawlerBuilder extends Builder {
 		public String getDisplayName() {
 			return "Crawler";
 		}
-
+		
 		public boolean isApplicable(Class<? extends AbstractProject> aClass) {
 			return true;
 		}
