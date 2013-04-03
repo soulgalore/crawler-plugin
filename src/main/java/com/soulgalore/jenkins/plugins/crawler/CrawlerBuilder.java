@@ -57,10 +57,11 @@ import com.soulgalore.jenkins.plugins.crawler.blocks.EnableCrawlerInternalsBlock
 import com.soulgalore.jenkins.plugins.crawler.blocks.EnableCrawlerPathBlock;
 
 /**
- * Jenkins plugin that verifies linked internal urls.
+ * Jenkins plugin that verifies linked internal urls and assets.
  */
 public class CrawlerBuilder extends Builder {
 
+	// all different configs
 	private final String url;
 	private final int level;
 	private final String login;
@@ -75,8 +76,6 @@ public class CrawlerBuilder extends Builder {
 	private final String followPath;
 	private final String notFollowPath;
 	private final boolean verifyAssets;
-
-	
 
 	@DataBoundConstructor
 	public CrawlerBuilder(String url, int level, boolean verifyAssets,
@@ -116,11 +115,6 @@ public class CrawlerBuilder extends Builder {
 
 	public String getConnectionTimeout() {
 		return connectionTimeout;
-	}
-
-	@Override
-	public DescriptorImpl getDescriptor() {
-		return (DescriptorImpl) super.getDescriptor();
 	}
 
 	public String getFollowPath() {
@@ -170,6 +164,11 @@ public class CrawlerBuilder extends Builder {
 	public boolean isCheckCrawlerPath() {
 		return checkCrawlerPath;
 	}
+	
+	@Override
+	public DescriptorImpl getDescriptor() {
+		return (DescriptorImpl) super.getDescriptor();
+	}
 
 	@Override
 	public boolean perform(AbstractBuild build, Launcher launcher,
@@ -177,32 +176,32 @@ public class CrawlerBuilder extends Builder {
 
 		PrintStream logger = listener.getLogger();
 
-		logger.println("Start crawling:" + url +  " for " + level + " level(s)");
-		
+		logger.println("Start crawling:" + url + " for " + level + " level(s) "
+				+ (verifyAssets ? " will verify assets" : ""));
+
 		CrawlerConfiguration configuration = CrawlerConfiguration.builder()
 				.setMaxLevels(level).setVerifyUrls(true)
 				.setOnlyOnPath(followPath).setNotOnPath(notFollowPath)
 				.setStartUrl(url).build();
-		
+
 		setupCrawlerInternals();
 
 		setupAuth();
-	
+
 		Injector injector = Guice.createInjector(new CrawlModule());
 		Crawler crawler = injector.getInstance(Crawler.class);
 		AssetsVerifier verifier = injector.getInstance(AssetsVerifier.class);
-		
 
-		
 		try {
 
-			final CrawlerResult result = crawl(configuration, crawler, logger);
+			final CrawlerResult result = crawler.getUrls(configuration);
 
 			boolean isPagesOk = verifyPages(result, logger);
 			boolean isAssetsOk = true;
 
 			if (verifyAssets) {
-				isAssetsOk = verifyAssets(verifier, result, configuration, logger);
+				isAssetsOk = verifyAssets(verifier, result, configuration,
+						logger);
 			}
 
 			return (isPagesOk && isAssetsOk);
@@ -216,7 +215,7 @@ public class CrawlerBuilder extends Builder {
 
 	private boolean verifyPages(CrawlerResult result, PrintStream logger) {
 
-		boolean isBreakingTheLaw = false;
+		boolean isFailing = false;
 
 		logger.println("Tested "
 				+ (result.getNonWorkingUrls().size() + result
@@ -229,7 +228,7 @@ public class CrawlerBuilder extends Builder {
 		Set<HTMLPageResponse> responses = result.getNonWorkingUrls();
 		if (responses.size() > 0) {
 			logger.println("Non working urls ...");
-			isBreakingTheLaw = true;
+			isFailing = true;
 		}
 
 		for (HTMLPageResponse response : responses) {
@@ -243,18 +242,10 @@ public class CrawlerBuilder extends Builder {
 			logger.println(response.getPageUrl().getUrl());
 		}
 
-		if (isBreakingTheLaw)
+		if (isFailing)
 			return false;
 		else
 			return true;
-	}
-
-	private CrawlerResult crawl(CrawlerConfiguration configuration,Crawler crawler,
-			PrintStream logger) {
-			CrawlerResult result = crawler.getUrls(configuration);
-			return result;
-
-
 	}
 
 	private boolean verifyAssets(AssetsVerifier verifier, CrawlerResult result,
@@ -335,7 +326,7 @@ public class CrawlerBuilder extends Builder {
 		public String getDisplayName() {
 			return "Crawler";
 		}
-		
+
 		public boolean isApplicable(Class<? extends AbstractProject> aClass) {
 			return true;
 		}
