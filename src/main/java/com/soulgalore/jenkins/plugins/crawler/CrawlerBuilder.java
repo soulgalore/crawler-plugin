@@ -62,19 +62,75 @@ import com.soulgalore.jenkins.plugins.crawler.blocks.EnableCrawlerPathBlock;
 public class CrawlerBuilder extends Builder {
 
 	// all different configs
+	
+	/**
+	 * The start url of the crawl.
+	 */
 	private final String url;
+	
+	/**
+	 * How deep you want to crawl.
+	 */
 	private final int level;
+	
+	/**
+	 * The login if you are using basic auth.
+	 */
 	private final String login;
+	
+	/**
+	 * The password if you are using basic auth.
+	 */
 	private final String password;
+	
+	/**
+	 * If auth is checked or not.
+	 */
 	private final boolean checkAuth;
+	
+	/**
+	 * If crawler internals is checked or not.
+	 */
 	private final boolean checkCrawler;
+	
+	/**
+	 * If the crawler path specifics is checked or not.
+	 */
 	private final boolean checkCrawlerPath;
+	
+	/**
+	 * The number of HTTP threads for the crawl client.
+	 */
 	private final String httpThreads;
+	
+	/**
+	 * The number of threads in the pool that will parse the responses.
+	 */
 	private final String threadsPool;
+	
+	/**
+	 * The socket timeout.
+	 */
 	private final String socketTimeout;
+	
+	/**
+	 * The connection timeout.
+	 */
 	private final String connectionTimeout;
+
+	/**
+	 * Follow only this path in the crawl.
+	 */
 	private final String followPath;
+	
+	/**
+	 * Do not include pages in this path in the crawl.
+	 */
 	private final String notFollowPath;
+	
+	/**
+	 * Should assets also be verified?
+	 */
 	private final boolean verifyAssets;
 
 	@DataBoundConstructor
