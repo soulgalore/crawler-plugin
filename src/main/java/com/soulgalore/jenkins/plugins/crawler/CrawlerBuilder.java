@@ -28,7 +28,6 @@ import hudson.model.AbstractProject;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -230,8 +229,9 @@ public class CrawlerBuilder extends Builder {
 	public boolean perform(AbstractBuild build, Launcher launcher,
 			BuildListener listener) {
 
+	
 		PrintStream logger = listener.getLogger();
-
+		
 		logger.println("Start crawling:" + url + " for " + level + " level(s) "
 				+ (verifyAssets ? " will verify assets" : ""));
 
@@ -255,11 +255,21 @@ public class CrawlerBuilder extends Builder {
 			boolean isPagesOk = verifyPages(result, logger);
 			boolean isAssetsOk = true;
 
+			AssetsVerificationResult assetResults = null;
+			
 			if (verifyAssets) {
-				isAssetsOk = verifyAssets(verifier, result, configuration,
+				assetResults = verifyAssets(verifier, result, configuration,
 						logger);
+				
+				if (assetResults.getNonWorkingAssets().size()>0)
+					isAssetsOk = false;
 			}
 
+			
+			CrawlerJunitReport reporter = new CrawlerJunitReport(result,assetResults);
+			reporter.writeReport("crawler.xml", logger);
+			
+			
 			return (isPagesOk && isAssetsOk);
 
 		} finally {
@@ -304,7 +314,7 @@ public class CrawlerBuilder extends Builder {
 			return true;
 	}
 
-	private boolean verifyAssets(AssetsVerifier verifier, CrawlerResult result,
+	private AssetsVerificationResult verifyAssets(AssetsVerifier verifier, CrawlerResult result,
 			CrawlerConfiguration configuration, PrintStream logger) {
 
 		logger.println("Start verifying assets");
@@ -321,11 +331,9 @@ public class CrawlerBuilder extends Builder {
 				logger.println(resp.getUrl() + " "
 						+ StatusCode.toFriendlyName(resp.getResponseCode()));
 			}
-			return false;
 		}
 
-		else
-			return true;
+		return assetsResult;
 	}
 
 	private void setupCrawlerInternals() {
