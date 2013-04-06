@@ -1,8 +1,7 @@
 package com.soulgalore.jenkins.plugins.crawler;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import hudson.FilePath;
+
 import java.io.PrintStream;
 
 import org.jdom2.Document;
@@ -18,6 +17,7 @@ import com.soulgalore.crawler.util.StatusCode;
 
 public class CrawlerJunitReport {
 
+	public static final String FILENAME = "crawler-junit.xml";
 	private final CrawlerResult result;
 	private final AssetsVerificationResult assetsResult;
 
@@ -27,25 +27,23 @@ public class CrawlerJunitReport {
 		assetsResult = theAssetsResult;
 	}
 
-	public boolean writeReport(String destination, PrintStream logger) {
+	public boolean writeReport(FilePath workSpace, PrintStream logger) {
 		Element root = new Element("testsuites");
+		root.setAttribute("name", "the crawler suites");
 		root.addContent(getPageVerifications());
-		root.addContent(getAssetsVerifications());
+		if (assetsResult != null)
+			root.addContent(getAssetsVerifications());
 		Document doc = new Document(root);
 		XMLOutputter outputter = new XMLOutputter(Format.getPrettyFormat());
 
 		logger.println(outputter.outputString(doc));
-		
-		logger.println("Write to:" + destination);
-		
-		FileWriter out;
+
 		try {
-			out = new FileWriter(new File(destination));
-			outputter.output(doc, out);
+			FilePath junitXML = workSpace.child(FILENAME);
+			outputter.output(doc, junitXML.write());
 			return true;
-		} catch (IOException e) {
-			logger.println("Couldn't create JunitXML file:" + destination + " "
-					+ e.toString());
+		} catch (Exception e) {
+			logger.println("Couldn't create JunitXML file:" + e.toString());
 			return false;
 		}
 
@@ -56,10 +54,17 @@ public class CrawlerJunitReport {
 		Element testSuite = new Element("testsuite");
 		testSuite.setAttribute("name", "Crawled pages");
 		testSuite.setAttribute("tests", ""
-				+ (result.getVerifiedURLResponses().size()
-				+ result.getNonWorkingUrls().size()));
+				+ (result.getVerifiedURLResponses().size() + result
+						.getNonWorkingUrls().size()));
 		testSuite.setAttribute("failures", ""
 				+ result.getNonWorkingUrls().size());
+
+		long testSuiteTime = 0;
+		for (HTMLPageResponse resp : result.getVerifiedURLResponses())
+			testSuiteTime += resp.getFetchTime();
+		for (HTMLPageResponse resp : result.getNonWorkingUrls())
+			testSuiteTime += resp.getFetchTime();
+		testSuite.setAttribute("time", "" + (testSuiteTime / 1000.0D));
 
 		for (HTMLPageResponse resp : result.getVerifiedURLResponses()) {
 			Element testCase = new Element("testcase");
@@ -67,6 +72,7 @@ public class CrawlerJunitReport {
 					.getPageUrl().getUrl()));
 			testCase.setAttribute("status",
 					StatusCode.toFriendlyName(resp.getResponseCode()));
+			testCase.setAttribute("time", "" + (resp.getFetchTime() / 1000.0D));
 			testSuite.addContent(testCase);
 		}
 
@@ -76,12 +82,14 @@ public class CrawlerJunitReport {
 					.getPageUrl().getUrl()));
 			testCase.setAttribute("status",
 					StatusCode.toFriendlyName(resp.getResponseCode()));
+			testCase.setAttribute("time", "" + (resp.getFetchTime() / 1000.0D));
 			Element failure = new Element("failure");
 			failure.setAttribute("message",
 					"The url " + resp.getPageUrl().getUrl() + " got "
 							+ StatusCode.toFriendlyName(resp.getResponseCode())
 							+ " and is linked from "
 							+ resp.getPageUrl().getReferer());
+			testCase.addContent(failure);
 			testSuite.addContent(testCase);
 		}
 
@@ -94,16 +102,24 @@ public class CrawlerJunitReport {
 		Element testSuite = new Element("testsuite");
 		testSuite.setAttribute("name", "Crawled assets");
 		testSuite.setAttribute("tests", ""
-				+ (assetsResult.getWorkingAssets().size()
-				+ assetsResult.getNonWorkingAssets().size()));
+				+ (assetsResult.getWorkingAssets().size() + assetsResult
+						.getNonWorkingAssets().size()));
 		testSuite.setAttribute("failures", ""
 				+ assetsResult.getNonWorkingAssets().size());
+
+		long testSuiteTime = 0;
+		for (AssetResponse resp : assetsResult.getWorkingAssets())
+			testSuiteTime += resp.getFetchTime();
+		for (AssetResponse resp : assetsResult.getNonWorkingAssets())
+			testSuiteTime += resp.getFetchTime();
+		testSuite.setAttribute("time", "" + (testSuiteTime / 1000.0D));
 
 		for (AssetResponse resp : assetsResult.getWorkingAssets()) {
 			Element testCase = new Element("testcase");
 			testCase.setAttribute("name", junitFriendlyUrlName(resp.getUrl()));
 			testCase.setAttribute("status",
 					StatusCode.toFriendlyName(resp.getResponseCode()));
+			testCase.setAttribute("time", "" + (resp.getFetchTime() / 1000.0D));
 			testSuite.addContent(testCase);
 		}
 
@@ -112,11 +128,13 @@ public class CrawlerJunitReport {
 			testCase.setAttribute("name", junitFriendlyUrlName(resp.getUrl()));
 			testCase.setAttribute("status",
 					StatusCode.toFriendlyName(resp.getResponseCode()));
+			testCase.setAttribute("time", "" + (resp.getFetchTime() / 1000.0D));
 			Element failure = new Element("failure");
 			failure.setAttribute(
 					"message",
 					"The asset " + resp.getUrl() + " got "
 							+ StatusCode.toFriendlyName(resp.getResponseCode()));
+			testCase.addContent(failure);
 			testSuite.addContent(testCase);
 		}
 
