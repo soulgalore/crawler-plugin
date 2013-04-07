@@ -266,8 +266,8 @@ public class CrawlerBuilder extends Builder {
 			}
 
 			
-			CrawlerJunitReport reporter = new CrawlerJunitReport(result,assetResults);
-			reporter.writeReport(build.getWorkspace(), logger);
+			CrawlerJunitReport reporter = new CrawlerJunitReport();
+			reporter.writeReport(result,assetResults, build.getWorkspace(), logger);
 			
 			
 			return (isPagesOk && isAssetsOk);

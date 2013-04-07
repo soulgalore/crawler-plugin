@@ -18,21 +18,17 @@ import com.soulgalore.crawler.util.StatusCode;
 public class CrawlerJunitReport {
 
 	public static final String FILENAME = "crawler-junit.xml";
-	private final CrawlerResult result;
-	private final AssetsVerificationResult assetsResult;
 
-	public CrawlerJunitReport(CrawlerResult theResult,
-			AssetsVerificationResult theAssetsResult) {
-		result = theResult;
-		assetsResult = theAssetsResult;
+	public CrawlerJunitReport() {
 	}
 
-	public boolean writeReport(FilePath workSpace, PrintStream logger) {
+	public boolean writeReport(CrawlerResult result,
+			AssetsVerificationResult assetsResult, FilePath workSpace, PrintStream logger) {
 		Element root = new Element("testsuites");
 		root.setAttribute("name", "the crawler suites");
-		root.addContent(getPageVerifications());
+		root.addContent(getPageVerifications(result));
 		if (assetsResult != null)
-			root.addContent(getAssetsVerifications());
+			root.addContent(getAssetsVerifications(assetsResult));
 		Document doc = new Document(root);
 		XMLOutputter outputter = new XMLOutputter(Format.getPrettyFormat());
 
@@ -41,15 +37,16 @@ public class CrawlerJunitReport {
 		try {
 			FilePath junitXML = workSpace.child(FILENAME);
 			outputter.output(doc, junitXML.write());
+			logger.println("Wrote file " + FILENAME + " to workspace");
 			return true;
 		} catch (Exception e) {
-			logger.println("Couldn't create JunitXML file:" + e.toString());
+			logger.println("Couldn't create JunitXML file " + FILENAME + e.toString());
 			return false;
 		}
 
 	}
 
-	private Element getPageVerifications() {
+	private Element getPageVerifications(CrawlerResult result) {
 
 		Element testSuite = new Element("testsuite");
 		testSuite.setAttribute("name", "Crawled pages");
@@ -97,7 +94,7 @@ public class CrawlerJunitReport {
 
 	}
 
-	private Element getAssetsVerifications() {
+	private Element getAssetsVerifications(AssetsVerificationResult assetsResult) {
 
 		Element testSuite = new Element("testsuite");
 		testSuite.setAttribute("name", "Crawled assets");
