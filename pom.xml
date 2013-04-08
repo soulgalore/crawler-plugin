@@ -9,7 +9,7 @@
 
   <groupId>com.soulgalore.jenkins.plugins</groupId>
   <artifactId>crawler</artifactId>
-  <version>0.1-SNAPSHOT</version>
+  <version>0.8-SNAPSHOT</version>
   <packaging>hpi</packaging>
 
   	<description>The crawler plugin will verify that all your web pages on your build is ok. </description>
