@@ -15,11 +15,11 @@ import com.soulgalore.crawler.core.assets.AssetResponse;
 import com.soulgalore.crawler.core.assets.AssetsVerificationResult;
 import com.soulgalore.crawler.util.StatusCode;
 
-public class CrawlerJunitReport {
+public class CrawlerJUnitXMLReport {
 
 	public static final String FILENAME = "crawler-junit.xml";
 
-	public CrawlerJunitReport() {
+	public CrawlerJUnitXMLReport() {
 	}
 
 	public boolean verifyAndWriteReport(CrawlerResult result,
