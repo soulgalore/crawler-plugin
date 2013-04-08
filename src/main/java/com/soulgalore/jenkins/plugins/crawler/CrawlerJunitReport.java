@@ -22,13 +22,22 @@ public class CrawlerJunitReport {
 	public CrawlerJunitReport() {
 	}
 
-	public boolean writeReport(CrawlerResult result,
-			AssetsVerificationResult assetsResult, FilePath workSpace, PrintStream logger) {
+	public boolean verifyAndWriteReport(CrawlerResult result,
+			AssetsVerificationResult assetsResult, FilePath workSpace,
+			PrintStream logger) {
+		boolean isSuccess = true;
 		Element root = new Element("testsuites");
 		root.setAttribute("name", "the crawler suites");
 		root.addContent(getPageVerifications(result));
-		if (assetsResult != null)
+
+		if (result.getNonWorkingUrls().size() > 0)
+			isSuccess = false;
+
+		if (assetsResult != null) {
 			root.addContent(getAssetsVerifications(assetsResult));
+			if (assetsResult.getNonWorkingAssets().size() > 0)
+				isSuccess = false;
+		}
 		Document doc = new Document(root);
 		XMLOutputter outputter = new XMLOutputter(Format.getPrettyFormat());
 
@@ -38,11 +47,13 @@ public class CrawlerJunitReport {
 			FilePath junitXML = workSpace.child(FILENAME);
 			outputter.output(doc, junitXML.write());
 			logger.println("Wrote file " + FILENAME + " to workspace");
-			return true;
+
 		} catch (Exception e) {
-			logger.println("Couldn't create JunitXML file " + FILENAME + e.toString());
-			return false;
+			logger.println("Couldn't create JunitXML file " + FILENAME
+					+ e.toString());
+			isSuccess = false;
 		}
+		return isSuccess;
 
 	}
 

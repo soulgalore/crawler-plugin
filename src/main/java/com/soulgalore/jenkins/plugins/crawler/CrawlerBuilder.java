@@ -61,57 +61,57 @@ import com.soulgalore.jenkins.plugins.crawler.blocks.EnableCrawlerPathBlock;
 public class CrawlerBuilder extends Builder {
 
 	// all different configs
-	
+
 	/**
 	 * The start url of the crawl.
 	 */
 	private final String url;
-	
+
 	/**
 	 * How deep you want to crawl.
 	 */
 	private final int level;
-	
+
 	/**
 	 * The login if you are using basic auth.
 	 */
 	private final String login;
-	
+
 	/**
 	 * The password if you are using basic auth.
 	 */
 	private final String password;
-	
+
 	/**
 	 * If auth is checked or not.
 	 */
 	private final boolean checkAuth;
-	
+
 	/**
 	 * If crawler internals is checked or not.
 	 */
 	private final boolean checkCrawler;
-	
+
 	/**
 	 * If the crawler path specifics is checked or not.
 	 */
 	private final boolean checkCrawlerPath;
-	
+
 	/**
 	 * The number of HTTP threads for the crawl client.
 	 */
 	private final String httpThreads;
-	
+
 	/**
 	 * The number of threads in the pool that will parse the responses.
 	 */
 	private final String threadsPool;
-	
+
 	/**
 	 * The socket timeout.
 	 */
 	private final String socketTimeout;
-	
+
 	/**
 	 * The connection timeout.
 	 */
@@ -121,12 +121,12 @@ public class CrawlerBuilder extends Builder {
 	 * Follow only this path in the crawl.
 	 */
 	private final String followPath;
-	
+
 	/**
 	 * Do not include pages in this path in the crawl.
 	 */
 	private final String notFollowPath;
-	
+
 	/**
 	 * Should assets also be verified?
 	 */
@@ -219,7 +219,7 @@ public class CrawlerBuilder extends Builder {
 	public boolean isCheckCrawlerPath() {
 		return checkCrawlerPath;
 	}
-	
+
 	@Override
 	public DescriptorImpl getDescriptor() {
 		return (DescriptorImpl) super.getDescriptor();
@@ -229,9 +229,8 @@ public class CrawlerBuilder extends Builder {
 	public boolean perform(AbstractBuild build, Launcher launcher,
 			BuildListener listener) {
 
-	
 		PrintStream logger = listener.getLogger();
-		
+
 		logger.println("Start crawling:" + url + " for " + level + " level(s) "
 				+ (verifyAssets ? " will verify assets" : ""));
 
@@ -251,89 +250,18 @@ public class CrawlerBuilder extends Builder {
 		try {
 
 			final CrawlerResult result = crawler.getUrls(configuration);
+			final AssetsVerificationResult assetsResult = verifier.verify(
+					result.getVerifiedURLResponses(), configuration);
 
-			boolean isPagesOk = verifyPages(result, logger);
-			boolean isAssetsOk = true;
-
-			AssetsVerificationResult assetResults = null;
-			
-			if (verifyAssets) {
-				assetResults = verifyAssets(verifier, result, configuration,
-						logger);
-				
-				if (assetResults.getNonWorkingAssets().size()>0)
-					isAssetsOk = false;
-			}
-
-			
 			CrawlerJunitReport reporter = new CrawlerJunitReport();
-			reporter.writeReport(result,assetResults, build.getWorkspace(), logger);
-			
-			
-			return (isPagesOk && isAssetsOk);
+			return reporter.verifyAndWriteReport(result, assetsResult,
+					build.getWorkspace(), logger);
 
 		} finally {
 			crawler.shutdown();
 			verifier.shutdown();
 		}
 
-	}
-
-	private boolean verifyPages(CrawlerResult result, PrintStream logger) {
-
-		boolean isFailing = false;
-
-		logger.println("Tested "
-				+ (result.getNonWorkingUrls().size() + result
-						.getVerifiedURLResponses().size()) + " with "
-				+ result.getVerifiedURLResponses().size()
-				+ " working urls and " + result.getNonWorkingUrls().size()
-				+ " not working.");
-
-		// start with non working urls
-		Set<HTMLPageResponse> responses = result.getNonWorkingUrls();
-		if (responses.size() > 0) {
-			logger.println("Non working urls ...");
-			isFailing = true;
-		}
-
-		for (HTMLPageResponse response : responses) {
-			logger.println(response.getPageUrl().getUrl() + " "
-					+ StatusCode.toFriendlyName(response.getResponseCode())
-					+ " linked from:" + response.getPageUrl().getReferer());
-		}
-
-		logger.println("Working urls ...");
-		for (HTMLPageResponse response : result.getVerifiedURLResponses()) {
-			logger.println(response.getPageUrl().getUrl());
-		}
-
-		if (isFailing)
-			return false;
-		else
-			return true;
-	}
-
-	private AssetsVerificationResult verifyAssets(AssetsVerifier verifier, CrawlerResult result,
-			CrawlerConfiguration configuration, PrintStream logger) {
-
-		logger.println("Start verifying assets");
-		AssetsVerificationResult assetsResult = verifier.verify(
-				result.getVerifiedURLResponses(), configuration);
-		logger.println("Verified " + assetsResult.getWorkingAssets().size()
-				+ " assets that works and "
-				+ assetsResult.getNonWorkingAssets().size()
-				+ " that don't work");
-
-		if (assetsResult.getNonWorkingAssets().size() > 0) {
-
-			for (AssetResponse resp : assetsResult.getNonWorkingAssets()) {
-				logger.println(resp.getUrl() + " "
-						+ StatusCode.toFriendlyName(resp.getResponseCode()));
-			}
-		}
-
-		return assetsResult;
 	}
 
 	private void setupCrawlerInternals() {
