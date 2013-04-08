@@ -1,4 +1,4 @@
-# Crawler plugin for Jenkins 
+# Crawler plugin for Jenkins [![Build Status](https://travis-ci.org/soulgalore/crawler-plugin.png?branch=master)](https://travis-ci.org/soulgalore/crawler-plugin)
 
 Break the build if you internally link to a page that don't work.
 
