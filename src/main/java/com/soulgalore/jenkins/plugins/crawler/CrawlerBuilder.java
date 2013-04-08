@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Set;
 
 import javax.servlet.ServletException;
 
@@ -45,12 +44,9 @@ import com.google.inject.Injector;
 import com.soulgalore.crawler.core.CrawlerConfiguration;
 import com.soulgalore.crawler.core.CrawlerResult;
 import com.soulgalore.crawler.core.Crawler;
-import com.soulgalore.crawler.core.HTMLPageResponse;
-import com.soulgalore.crawler.core.assets.AssetResponse;
 import com.soulgalore.crawler.core.assets.AssetsVerificationResult;
 import com.soulgalore.crawler.core.assets.AssetsVerifier;
 import com.soulgalore.crawler.guice.CrawlModule;
-import com.soulgalore.crawler.util.StatusCode;
 import com.soulgalore.jenkins.plugins.crawler.blocks.EnableAuthBlock;
 import com.soulgalore.jenkins.plugins.crawler.blocks.EnableCrawlerInternalsBlock;
 import com.soulgalore.jenkins.plugins.crawler.blocks.EnableCrawlerPathBlock;
@@ -253,7 +249,7 @@ public class CrawlerBuilder extends Builder {
 			final AssetsVerificationResult assetsResult = verifier.verify(
 					result.getVerifiedURLResponses(), configuration);
 
-			CrawlerJunitReport reporter = new CrawlerJunitReport();
+			CrawlerJUnitXMLReport reporter = new CrawlerJUnitXMLReport();
 			return reporter.verifyAndWriteReport(result, assetsResult,
 					build.getWorkspace(), logger);
 
